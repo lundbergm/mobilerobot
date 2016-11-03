@@ -21,18 +21,20 @@ void setup() {
     val = 2;
 }
 
+long getDistance(){
+    digitalWrite(trig, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trig, LOW);
+    duration = pulseIn(echo, HIGH);
+    return duration / 29 / 2;
+}
+
 void loop() {
     //wheel1.write(offset1 + val);
     //wheel2.write(offset2 + val);                // sets the servo position according to the scaled value
     //line = analogRead(linesensor);
     //Serial.println(line);
 
-    digitalWrite(trig, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trig, LOW);
-
-    duration = pulseIn(echo, HIGH);
-    distance = duration / 29 / 2;
     Serial.println(distance);
     delay(100);
 }
