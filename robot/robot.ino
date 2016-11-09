@@ -1,18 +1,26 @@
 #include <Servo.h>
-#define offsetR 87
+#include <PinChangeInterrupt.h>
+#include <PinChangeInterruptBoards.h>
+#include <PinChangeInterruptPins.h>
+#include <PinChangeInterruptSettings.h>
+#include <Time.h>
+
+/** DEFINE **/
+#define offsetR 88
 #define offsetL 90
-#define LEFT -1
-#define NORMAL 0
-#define RIGHT 1
-int linesensorL = A0;  // analog pin used to connect the potentiometer
-int linesensorR = A1;
-int frontsensorR      = A2;
-int frontsensorL      = A3;
-int trig = 2;
-int echo = 7;
+
+/** PIN **/
+#define linesensorL A0  // analog pin used to connect the potentiometer
+#define linesensorR A1
+#define senL 2
+#define senR 3
+#define motorL 5
+#define motorR 6
+
 int gripperPin = 6;
-int button1Pin = 12;
-int button2Pin = 13;
+int trig = 8;
+int echo = 7;
+
 int val;    // variable to read the value from the analog pin
 int lineL;
 int lineR;
@@ -31,51 +39,62 @@ int conf = 0;
 int speedL = 0;
 int speedR = 0;
 int mode;
+int countL = 0;
+int temp = 0;
+unsigned long time1 = 0;
+unsigned long time2 = 0;
+double time3 = 0;
+unsigned long speedLSen = 0.0;
+unsigned long holeDist = 20000000; // ändra till riktigt värde
+
 
 void initMotors(){
     //gripper.attach(gripperPin);
 
-    wheelR.attach(3);
-    wheelL.attach(5);
+    wheelR.attach(motorR);
+    wheelL.attach(motorL);
+}
+
+void senLfunc(){
+
+    if(countL== 11 ){
+        time2 = millis();
+        time3 =time2 -time1;
+        speedLSen = holeDist/time3;
+        Serial.println(time3);
+        Serial.println(speedLSen);
+        countL = 0;
+        time1 = millis();
+    }
+
+    countL ++;
+
 }
 
 void setup() {
+    /* Serial */
     Serial.begin(9600);
-    initMotors();
+
+    //initMotors();
     pinMode(linesensorL, INPUT);
     pinMode(linesensorR, INPUT);
-    pinMode(frontsensorL, INPUT);
-    pinMode(frontsensorR, INPUT);
+
     pinMode(trig, OUTPUT);
-    pinMode(button1Pin, INPUT_PULLUP);
-    pinMode(button2Pin, INPUT_PULLUP);
+
     digitalWrite(trig, LOW);
-    pinMode(echo, INPUT);
-    speed = 8 ;
+    //pinMode(echo, INPUT);
+    /* Enable interrupt */
+    pinMode(senL, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(senL), senLfunc, RISING);
+    pinMode(senR, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(senR), senRfunc, RISING);
+
+    speed = 30 ;
     gripperVal = 90;
-    turn = 8;
+    turn = 6;
     mode = 0;
 }
 
-void buttons(){
-    /*wheelR.write(offsetR + conf);
-    if(button1Val == 0){
-        conf ++;
-    } else if(button2Val == 0){
-        conf --;
-    }
-    Serial.print(button1Val);
-    Serial.print("     ");
-    Serial.print(button2Val);
-    Serial.print("     ");
-    Serial.println(conf);
-    */
-
-
-
-    button1Val = digitalRead(button1Pin);
-    button2Val = digitalRead(button2Pin);
-}
 
 long getDistance(){
     digitalWrite(trig, HIGH);
@@ -88,19 +107,19 @@ long getDistance(){
 void checkLine(){
     lineL = analogRead(linesensorL);
     lineR = analogRead(linesensorR);
-    frontL = analogRead(frontsensorL);
-    frontR = analogRead(frontsensorR);
+    //frontL = analogRead(frontsensorL);
+    //frontR = analogRead(frontsensorR);
 
-    Serial.print(frontL);
-    Serial.print("     ");
+    //Serial.print(frontL);
+    //Serial.print("     ");
     Serial.print(lineL);
     Serial.print("     ");
     Serial.print(lineR);
     Serial.print("     ");
-    Serial.print(frontR);
-    Serial.print("     ");
+    //Serial.print(frontR);
+    //Serial.print("     ");
     Serial.println(" ");
-
+    /*
     if(frontL > 600){
         mode = LEFT; // LEFT MODE
     } else if (frontR > 600){
@@ -108,11 +127,11 @@ void checkLine(){
     }
     else {
         mode = NORMAL;
-    }
-    if(mode != RIGHT && lineL > 600){
+    }*/
+    if(lineL > 600){
         speedL = - turn;
         speedR = turn;
-    } else if(mode != LEFT && lineR > 600){
+    } else if(lineR > 600){
         speedL = turn;
         speedR = - turn;
     } else {
@@ -130,6 +149,8 @@ void still(){
 
 void loop() {
     //still();
-    checkLine();
+    //checkLine();
+    //temp = digitalRead(senL);
+    //Serial.println(temp);
     delay(100);
 }
