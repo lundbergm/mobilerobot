@@ -17,6 +17,9 @@
 #define senR 3
 #define motorL 5
 #define motorR 6
+#define frontSensorL 7
+#define frontSensorR 8
+#define frontSensorM 9
 
 int gripperPin = 6;
 int trig = 8;
@@ -53,6 +56,9 @@ int offsetL = 80;
 int minVal = 50;
 int maxVal = 900;
 int ref    = (900+50)/2;
+unsigned long timeFrontsensorL;
+unsigned long timeFrontsensorR;
+unsigned long timeFrontsensorM;
 
 
 void initMotors(){
@@ -112,6 +118,13 @@ void setup() {
     pinMode(senR, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(senR), senRfunc, RISING);
 
+//tillagt av bigmike
+
+	attachInterrupt(frontSensorL, frontSensorInterruptL, RISING);
+	attachInterrupt(frontSensorM, frontSensorInterruptM, HIGH);
+	attachInterrupt(frontSensorR, frontSensorInterruptR, RISING);
+
+
     speed = 30 ;
     gripperVal = 90;
     turn = 6;
@@ -120,6 +133,40 @@ void setup() {
     //offsetLFunc();
     Serial.println("ALL DONE");
 }
+
+void frontSensorInterruptL(){
+	timeFrontSensorL = millis();
+
+	if(abs(timeFrontSensorL - timeFrontSensorR) < 100 || abs(timeFrontSensorL - timeFrontSensorM) < 100){
+    //regga sväng.
+	}
+	else{
+		//regga inte sväng
+	}
+}
+
+void frontSensorInterruptR(){
+	timeFrontSensorR = millis();
+
+	if(abs(timeFrontSensorR - timeFrontSensorL) < 100 || abs(timeFrontSensorL - timeFrontSensorM) < 100){
+    //regga sväng.
+	}
+	else{
+		//regga inte sväng
+	}
+}
+
+void frontSensorInterruptM(){
+	timeFrontSensorM = millis();
+
+  if(abs(timeFrontSensorM - timeFrontSensorR) < 100 || abs(timeFrontSensorM - timeFrontSensorL) < 100){
+		//regga sväng.
+	}
+	else{
+		//regga inte sväng
+	}
+}
+
 
 long getDistance(){
     digitalWrite(trig, HIGH);
@@ -174,6 +221,9 @@ void still(){
 
 void loop() {
     //checkLine();
+
+    if(ti)
+
     run();
     delay(100);
 }
