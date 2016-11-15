@@ -43,16 +43,22 @@ int mode;
 int countL = 0;
 int countR = 0;
 int temp = 0;
-unsigned long time1 = 0;
-unsigned long time2 = 0;
-double time3 = 0;
+
 unsigned long speedLSen = 0.0;
 unsigned long holeDist = 20000000; // ändra till riktigt värde
-int offsetR = 80;
-int offsetL = 80;
-int minVal = 50;
-int maxVal = 900;
-int ref    = (900+50)/2;
+int offsetR = 90;
+int offsetL = 90;
+int minR = 999;
+int maxR = 0;
+int minL = 999;
+int maxL = 0;
+int refR = (maxR+minR)/2;
+int refL = (maxL+minL)/2;
+int u = 0;
+int e = 0;
+double kpR = 0.3;
+double kpL = 0.3;
+
 
 
 void initMotors(){
@@ -62,32 +68,7 @@ void initMotors(){
     wheelL.attach(motorL);
 }
 
-void offsetRFunc(){
 
-    do{
-        offsetR++;
-        wheelR.write(offsetR);
-        countR = 0;
-        delay(1000);
-        Serial.println(countR);
-
-    }while(countR != 0);
-    Serial.print("offsetR: ");
-    Serial.println(offsetR);
-}
-
-void offsetLFunc(){
-
-    do{
-        offsetL++;
-        wheelL.write(offsetL);
-        countL = 0;
-        delay(1000);
-        Serial.println(countL);
-    }while(countL != 0);
-    Serial.print("offsetL: ");
-    Serial.println(offsetL);
-}
 
 void senLfunc(){
     countL ++;
@@ -100,7 +81,6 @@ void setup() {
     /* Serial */
     Serial.begin(9600);
 
-    initMotors();
     pinMode(linesensorL, INPUT);
     pinMode(linesensorR, INPUT);
     //pinMode(trig, OUTPUT);
@@ -112,13 +92,64 @@ void setup() {
     pinMode(senR, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(senR), senRfunc, RISING);
 
-    speed = 30 ;
+    speed = 40 ;
     gripperVal = 90;
     turn = 6;
-    mode = 0;
+    mode = RIGHT;
     //offsetRFunc();
     //offsetLFunc();
+    Serial.println("SETUP");
+    delay(1000);
+    initMotors();
+    calibrate();
     Serial.println("ALL DONE");
+}
+
+void calibrate(){
+    wheelR.write(offsetR + 40);
+    wheelL.write(offsetL + 40);
+    for(int i = 0; i<200; i++){
+        lineR = analogRead(linesensorR);
+        lineL = analogRead(linesensorL);
+        if(lineR < minR){
+            minR = lineR;
+        }
+        if(lineR > maxR){
+            maxR = lineR;
+        }
+        if(lineL < minL){
+            minL = lineL;
+        }
+        if(lineL > maxL){
+            maxL = lineL;
+        }
+        if(i == 50){
+            wheelR.write(offsetR - 40);
+            wheelL.write(offsetL - 40);
+        }
+        if(i == 150){
+            wheelR.write(offsetR + 40);
+            wheelL.write(offsetL + 40);
+        }
+        delay(20);
+    }
+
+    wheelR.write(offsetR);
+    wheelL.write(offsetL);
+    Serial.println("maxR");
+    Serial.println(maxR);
+    Serial.println("minR");
+    Serial.println(minR);
+    refR    = (maxR+minR)/2;
+    refL    = (maxL+minL)/2;
+    Serial.println("refR    ");
+    Serial.println(refR);
+    kpR = 80.0/(maxR - minR);
+    kpL = 80.0/(maxL - minL);
+    Serial.println("delta");
+    Serial.println(maxR- minR);
+    Serial.println("kpR");
+    Serial.println(kpR);
 }
 
 long getDistance(){
@@ -134,36 +165,58 @@ void checkLine(){
     lineL = analogRead(linesensorL);
     lineR = analogRead(linesensorR);
 
+    Serial.print("L: ");
     Serial.print(lineL);
-    Serial.print("     ");
+    Serial.print("     R: ");
     Serial.println(lineR);
-    if(lineL > 600 && lineR > 600){
-        turn90(LEFT);
-    } else if(lineL > 600){
-        speedL = - turn;
-        speedR = turn;
-    } else if(lineR > 600){
-        speedL = turn;
-        speedR = - turn;
-    } else {
-        speedL = speed;
-        speedR = speed;
-    }
-    wheelR.write(offsetR + speedR);
-    wheelL.write(offsetL - speedL);
+
 
 }
 
 void servo(int u){
-    wheelR.write(offsetR + speedR + u);
-    wheelL.write(offsetL - speedL + u);
+    if((offsetR + speed + u) > 180){
+        wheelR.write(180);
+    }else if((offsetR + speed + u) < 0){
+        wheelR.write(0);
+    } else {
+        wheelR.write(offsetR + speed + u);
+    }
+    if((offsetL - speed + u)> 180){
+        wheelL.write(180);
+    } else if((offsetL - speed + u)< 0){
+        wheelL.write(0);
+    }else {
+        wheelL.write(offsetL - speed + u);
+    }
+    Serial.print("R: ");
+    Serial.print(offsetR + speed + u);
+    Serial.print("     R: ");
+    Serial.println(offsetR - speed + u);
 }
 
-void run(){
 
-    lineL = analogRead(linesensorL);
-    e = ref - lineL;
-    u = kp * e;
+
+void run(){
+    if(mode == RIGHT){
+        lineR = analogRead(linesensorR);
+        e = refR - lineR;
+        Serial.print("R: ");
+        Serial.print(lineR);
+        Serial.print("      e: ");
+        Serial.print(e);
+        u = kpR * e;
+    } else if(mode == LEFT){
+        lineL = analogRead(linesensorL);
+        e = refL - lineL;
+        Serial.print("L: ");
+        Serial.print(lineL);
+        Serial.print("      e: ");
+        Serial.print(e);
+        u = kpL * e;
+    }
+    Serial.print("      u: ");
+    Serial.println(u);
+    servo(u);
 
 }
 
@@ -175,124 +228,6 @@ void still(){
 void loop() {
     //checkLine();
     run();
+    //still();
     delay(100);
-}
-
-/** Antal counts du vill att hjulet ska snurra, forward = true get framåt*/
-void moveWheelLCount(int count, boolean forward){
-    countL = 0;
-    Serial.println("moveWheelLCount");
-
-    while(countL<count && forward){
-        wheelL.write(offsetL+speedL);
-    }
-
-    count = -count;
-    while(countL<count && !forward){
-        wheelL.write(offsetL-speedL);
-    }
-}
-
-void moveWheelRCount(int count, boolean forward){
-    countR = 0;
-    Serial.println("moveWheelRCount");
-
-    while(countR<count && forward){
-        wheelR.write(offsetR+speedR);
-    }
-
-    while(countR<count && !forward){
-        wheelR.write(offsetR-speedR);
-    }
-}
-
-
-void turn90(int direction){
-    countL = 0;
-    countR = 0;
-    if(direction == LEFT){
-        wheelR.write(offsetR + 10);
-        wheelL.write(offsetL);
-        while(countR < 33){
-            Serial.print("L: ");
-            Serial.print(countL);
-            Serial.print("  R: ");
-            Serial.println(countR);
-        }
-    } else if (direction == RIGHT){
-        wheelR.write(offsetR);
-        wheelL.write(offsetL - 10);
-        while(countL < 33){
-            Serial.print("L: ");
-            Serial.print(countL);
-            Serial.print("  R: ");
-            Serial.println(countR);
-        }
-    }
-    wheelR.write(offsetR);
-    wheelL.write(offsetL);
-}
-
-void turn90Left(){
-    double hjulOmkrets = 163; // mm
-    double sensHjulDist = 30; // mm
-    double halIHjul = 20;
-
-    //kör fram avstånd mellan hjul och sensor
-    while(countL<=(int)(sensHjulDist/hjulOmkrets*halIHjul)){
-        wheelR.write(100);
-        wheelL.write(80);
-    }
-
-    wheelR.write(offsetR);
-    wheelL.write(offsetL);
-
-    //vänd 90 grader vänster
-
-    moveWheelRCount((int)(127/hjulOmkrets*halIHjul), true);
-    moveWheelLCount((int)(127/hjulOmkrets*halIHjul), false);
-
-    //kör fram samma avstånd
-
-    while(countL<=(int)(sensHjulDist/hjulOmkrets*halIHjul)){
-        wheelR.write(100);
-        wheelL.write(80);
-    }
-
-}
-
-void turn90Right(){
-    Serial.println("turn90Right");
-    double hjulOmkrets = 163; // mm
-    double sensHjulDist = 30; // mm
-    double halIHjul = 20;
-
-    //kör fram avstånd mellan hjul och sensor
-    countL = 0;
-    while(countL<=(int)(sensHjulDist*halIHjul/hjulOmkrets)){
-        wheelR.write(offsetR + 10);
-        wheelL.write(offsetL - 10);
-        Serial.print("CountL: ");
-        Serial.println(countL);
-
-
-    }
-    Serial.println("Kört fram");
-    //stå still
-    wheelR.write(offsetR);
-    wheelL.write(offsetL);
-    Serial.println("Stå still");
-    delay(1000);
-    //vänd 90 grader vänster
-
-    moveWheelRCount((int)(127*halIHjul)/hjulOmkrets, false);
-    moveWheelLCount((int)(127*halIHjul)/hjulOmkrets, true);
-
-    //kör fram samma avstånd
-    countL = 0;
-    while(countL<=(int)(sensHjulDist*halIHjul/hjulOmkrets)){
-        wheelR.write(offsetR + 10);
-        wheelL.write(offsetL - 10);
-    }
-
 }
