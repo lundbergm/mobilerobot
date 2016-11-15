@@ -48,16 +48,13 @@ unsigned long speedLSen = 0.0;
 unsigned long holeDist = 20000000; // ändra till riktigt värde
 int offsetR = 90;
 int offsetL = 90;
-int minR = 999;
-int maxR = 0;
-int minL = 999;
-int maxL = 0;
-int refR = (maxR+minR)/2;
-int refL = (maxL+minL)/2;
+int min = 999;
+int max = 0;
+int ref = (max+min)/2;
 int u = 0;
 int e = 0;
-double kpR = 0.3;
-double kpL = 0.3;
+double kp = 0.3;
+
 
 
 
@@ -92,7 +89,7 @@ void setup() {
     pinMode(senR, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(senR), senRfunc, RISING);
 
-    speed = 40 ;
+    speed = 10 ;
     gripperVal = 90;
     turn = 6;
     mode = RIGHT;
@@ -111,45 +108,37 @@ void calibrate(){
     for(int i = 0; i<200; i++){
         lineR = analogRead(linesensorR);
         lineL = analogRead(linesensorL);
-        if(lineR < minR){
-            minR = lineR;
+        if(lineR < min){
+            min = lineR;
         }
-        if(lineR > maxR){
-            maxR = lineR;
-        }
-        if(lineL < minL){
-            minL = lineL;
-        }
-        if(lineL > maxL){
-            maxL = lineL;
+        if(lineR > max){
+            max = lineR;
         }
         if(i == 50){
-            wheelR.write(offsetR - 40);
-            wheelL.write(offsetL - 40);
+            wheelR.write(offsetR - 20);
+            wheelL.write(offsetL - 20);
         }
         if(i == 150){
-            wheelR.write(offsetR + 40);
-            wheelL.write(offsetL + 40);
+            wheelR.write(offsetR + 20);
+            wheelL.write(offsetL + 20);
         }
         delay(20);
     }
 
     wheelR.write(offsetR);
     wheelL.write(offsetL);
-    Serial.println("maxR");
-    Serial.println(maxR);
-    Serial.println("minR");
-    Serial.println(minR);
-    refR    = (maxR+minR)/2;
-    refL    = (maxL+minL)/2;
-    Serial.println("refR    ");
-    Serial.println(refR);
-    kpR = 80.0/(maxR - minR);
-    kpL = 80.0/(maxL - minL);
+    Serial.println("max");
+    Serial.println(max);
+    Serial.println("min");
+    Serial.println(min);
+    ref    = (max+min)/2;
+    Serial.println("ref    ");
+    Serial.println(ref);
+    kp = 80.0/(max - min);
     Serial.println("delta");
-    Serial.println(maxR- minR);
-    Serial.println("kpR");
-    Serial.println(kpR);
+    Serial.println(max- min);
+    Serial.println("kp");
+    Serial.println(kp);
 }
 
 long getDistance(){
@@ -197,23 +186,15 @@ void servo(int u){
 
 
 void run(){
-    if(mode == RIGHT){
-        lineR = analogRead(linesensorR);
-        e = refR - lineR;
-        Serial.print("R: ");
-        Serial.print(lineR);
-        Serial.print("      e: ");
-        Serial.print(e);
-        u = kpR * e;
-    } else if(mode == LEFT){
-        lineL = analogRead(linesensorL);
-        e = refL - lineL;
-        Serial.print("L: ");
-        Serial.print(lineL);
-        Serial.print("      e: ");
-        Serial.print(e);
-        u = kpL * e;
-    }
+
+    lineR = analogRead(linesensorR);
+    e = ref - lineR;
+    Serial.print("R: ");
+    Serial.print(lineR);
+    Serial.print("      e: ");
+    Serial.print(e);
+    u = kp * e;
+
     Serial.print("      u: ");
     Serial.println(u);
     servo(u);
