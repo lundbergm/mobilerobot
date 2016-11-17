@@ -5,6 +5,7 @@
 #include <PinChangeInterruptSettings.h>
 #include <Time.h>
 
+
 /** DEFINE **/
 #define RIGHT 1
 #define LEFT 2
@@ -42,6 +43,7 @@ int turn;
 int conf = 0;
 int speedL = 0;
 int speedR = 0;
+int maxSpeed = 30;
 int mode;
 int countL = 0;
 int countR = 0;
@@ -50,9 +52,9 @@ int temp = 0;
 unsigned long speedLSen = 0.0;
 unsigned long holeDist = 20000000; // ändra till riktigt värde
 
-unsigned long timeFrontsensorL;
-unsigned long timeFrontsensorR;
-unsigned long timeFrontsensorM;
+unsigned long timeFrontSensorL;
+unsigned long timeFrontSensorR;
+unsigned long timeFrontSensorM;
 
 int offsetR = 90;
 int offsetL = 90;
@@ -66,7 +68,10 @@ int u = 0;
 int e = 0;
 double kpR = 0.3;
 double kpL = 0.3;
-
+double integral = 0;
+double ti = 0.02;
+double kp = 130.0;
+int imax = 40;
 
 
 void initMotors(){
@@ -194,8 +199,8 @@ void calibrate(){
     refL    = (maxL+minL)/2;
     Serial.println("refR    ");
     Serial.println(refR);
-    kpR = 80.0/(maxR - minR);
-    kpL = 80.0/(maxL - minL);
+    kpR = kp/(maxR - minR);
+    kpL = kp/(maxL - minL);
     Serial.println("delta");
     Serial.println(maxR- minR);
     Serial.println("kpR");
@@ -225,48 +230,48 @@ void checkLine(){
 }
 
 void servo(int u){
-    if((offsetR + speed + u) > 180){
-        wheelR.write(180);
-    }else if((offsetR + speed + u) < 0){
-        wheelR.write(0);
-    } else {
-        wheelR.write(offsetR + speed + u);
+    speedL = 50 + u;
+    speedR = 130 + u;
+
+    if(speedR > 130){
+        speedR = 130;
+    }else if(speedR < 50){
+        speedR = 50;
     }
-    if((offsetL - speed + u)> 180){
-        wheelL.write(180);
-    } else if((offsetL - speed + u)< 0){
-        wheelL.write(0);
-    }else {
-        wheelL.write(offsetL - speed + u);
+    if(speedL > 130){
+        speedL = 130;
+    } else if(speedL < 50){
+        speedL = 50;
     }
-    Serial.print("R: ");
-    Serial.print(offsetR + speed + u);
-    Serial.print("     R: ");
-    Serial.println(offsetR - speed + u);
+    wheelL.write(speedL);
+    wheelR.write(speedR);
+    Serial.print("      u: ");
+    Serial.print(u);
+    Serial.print("      R: ");
+    Serial.print(speedR);
+    Serial.print("     L: ");
+    Serial.println(speedL);
 }
 
-
-
 void run(){
+
     if(mode == RIGHT){
         lineR = analogRead(linesensorR);
         e = refR - lineR;
-        Serial.print("R: ");
-        Serial.print(lineR);
-        Serial.print("      e: ");
-        Serial.print(e);
-        u = kpR * e;
+        integral += e * ti;
+        if(integral > imax) {integral = imax;}
+        else if(integral < -imax) {integral = -imax;}
+        u = kpR * e + integral;
     } else if(mode == LEFT){
         lineL = analogRead(linesensorL);
         e = refL - lineL;
-        Serial.print("L: ");
-        Serial.print(lineL);
-        Serial.print("      e: ");
-        Serial.print(e);
-        u = kpL * e;
+        integral += e;
+        u = kpL * e + ti * integral;
     }
-    Serial.print("      u: ");
-    Serial.println(u);
+    Serial.print("e: ");
+    Serial.print(e);
+    Serial.print("      i: ");
+    Serial.print(integral);
     servo(u);
 
 }
