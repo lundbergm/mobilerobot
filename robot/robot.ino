@@ -22,6 +22,9 @@
 #define frontSensorR A3
 #define frontSensorM A2
 
+#define ledL 9
+#define ledR 10
+
 int gripperPin = 6;
 int trig = 8;
 int echo = 7;
@@ -45,6 +48,7 @@ int speedR = 0;
 int maxSpeed = 30;
 int mode;
 int turnMode;
+int identifyMode = 0;
 int countL = 0;
 int countR = 0;
 int temp = 0;
@@ -61,6 +65,8 @@ unsigned long timeFrontSensorR;
 unsigned long timeFrontSensorM;
 long turnModeTime = 0;
 long identifyTime = 0;
+
+int threshold = 670;
 
 int offsetR = 90;
 int offsetL = 90;
@@ -107,6 +113,9 @@ void setup() {
     pinMode(frontSensorL, INPUT);
     pinMode(frontSensorR, INPUT);
     pinMode(frontSensorM, INPUT);
+
+    pinMode(ledL, OUTPUT);
+    pinMode(ledR, OUTPUT);
 
     pinMode(senL, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(senL), senLfunc, RISING);
@@ -215,12 +224,6 @@ long getDistance(){
     return duration / 29 / 2;
 }
 
-
-void checkLine(){
-    lineL = analogRead(linesensorL);
-    lineR = analogRead(linesensorR);
-}
-
 void checkCrossing(){
     frontL = analogRead(frontSensorL);
     frontR = analogRead(frontSensorR);
@@ -229,29 +232,34 @@ void checkCrossing(){
     if((frontL > 600 || frontR > 600) && !turnMode){
         turnModeTime = millis();
         turnMode = 1;
-        Serial.print("TurnMode: ");
-        Serial.println(turnMode);
+        identifyTime = millis();
+        identifyMode = 1;
+        Serial.println("turnMode");
     }else if(turnMode && ((millis() - turnModeTime) > 1000 )){
         turnMode = 0;
-        Serial.print("TurnMode: ");
-        Serial.println(turnMode);
+        Serial.println("NOT turnMode");
     }
 }
 
 void identify(){
-    int threshold = 670;
 
-    frontL = analogRead(frontSensorL);
-    frontR = analogRead(frontSensorR);
-    frontM = analogRead(frontSensorM);
-    if(frontL > threshold){
-        roadL = 1;
-    }
-    if(frontR > threshold){
-        roadR = 1;
-    }
-    if(frontL > threshold){
-        roadM = 1;
+    if(millis() - identifyTime < 300){
+        frontL = analogRead(frontSensorL);
+        frontR = analogRead(frontSensorR);
+        frontM = analogRead(frontSensorM);
+        if(frontL > threshold){
+            roadL = 1;
+        }
+        if(frontR > threshold){
+            roadR = 1;
+        }
+        if(front > threshold){
+            roadM = 1;
+        }
+    }else if(roadL){
+        mode = LEFT;
+    }else if(roadR){
+        mode = RIGHT;
     }
 }
 
@@ -319,8 +327,11 @@ void still(){
 }
 
 void loop() {
-
+    LorR();
     checkCrossing();
+    if(turnMode){
+        identify();
+    }
     run();
 
     //still();
