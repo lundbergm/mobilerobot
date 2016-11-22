@@ -52,10 +52,6 @@ int temp = 0;
 unsigned long speedLSen = 0.0;
 unsigned long holeDist = 20000000; // ändra till riktigt värde
 
-unsigned long timeFrontSensorL;
-unsigned long timeFrontSensorR;
-unsigned long timeFrontSensorM;
-
 int offsetR = 90;
 int offsetL = 90;
 int minR = 999;
@@ -73,6 +69,8 @@ double ti = 0.025;
 double kp = 115.0;
 int imax = 30;
 
+char[] turns; // left = 'L', right = 'R', 180 = 'B', Straight = 'S'
+int turnsPointer;
 
 void initMotors(){
     //gripper.attach(gripperPin);
@@ -105,11 +103,11 @@ void setup() {
     pinMode(senR, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(senR), senRfunc, RISING);
 
-
-	attachInterrupt(frontSensorL, frontSensorInterruptL, RISING);
-	attachInterrupt(frontSensorM, frontSensorInterruptM, HIGH);
-	attachInterrupt(frontSensorR, frontSensorInterruptR, RISING);
-
+    attachInterrupt(frontSensorL, frontSensorInterruptL, RISING);
+    attachInterrupt(frontSensorM, frontSensorInterruptM, FALLING);
+    attachInterrupt(frontSensorR, frontSensorInterruptR, RISING);
+    turns = ['L', 'B', 'S', 'B', 'R'];
+    turnsPointer = 0;
 
     speed = 20 ;
 
@@ -126,39 +124,42 @@ void setup() {
 }
 
 void frontSensorInterruptL(){
-	timeFrontSensorL = millis();
-
-	if(abs(timeFrontSensorL - timeFrontSensorR) < 100 || abs(timeFrontSensorL - timeFrontSensorM) < 100){
-    //regga sväng.
-	}
-	else{
-		//regga inte sväng
-	}
+	turnsPointer++;
 }
 
 void frontSensorInterruptR(){
-	timeFrontSensorR = millis();
-
-	if(abs(timeFrontSensorR - timeFrontSensorL) < 100 || abs(timeFrontSensorL - timeFrontSensorM) < 100){
-    //regga sväng.
-	}
-	else{
-		//regga inte sväng
-	}
+	turnsPointer++;
 }
 
 void frontSensorInterruptM(){
-	timeFrontSensorM = millis();
-
-  if(abs(timeFrontSensorM - timeFrontSensorR) < 100 || abs(timeFrontSensorM - timeFrontSensorL) < 100){
-		//regga sväng.
-	}
-	else{
-		//regga inte sväng
-	}
+	turnsPointer++;
 }
 
-
+void candlesFound(){
+  result char[] = new char[sizeof(turns)];
+  boolean done =
+  while(i<turnsPointer){
+    tempResult char[] = new char[sizeof(turns)];
+    for(int i = 0; i < sizeof(turns); i++){
+      int sum = turns[i]+turns[i+1]+turns[i+2];
+      if(sum == 224 || sum == 232){
+        result[i] = 'B';
+        i += 2;
+      }
+      else if(sum == 225){
+        result[i] = 'R';
+        i += 2;
+      }
+      else if(sum == 218){
+        result[i] = 'S';
+        i += 2;
+      }
+      else{
+        result[i] = turns[i];
+      }
+    }
+  }
+}
 
 void calibrate(){
     wheelR.write(offsetR + 40);
@@ -262,6 +263,16 @@ void still(){
 
 void loop() {
     //checkLine();
+    if(turns[turnsPointer] == 'L'){
+      mode = LEFT;
+    }
+    elseif(turns[turnsPointer] == 'R'){
+      mode = RIGHT;
+    }
+    elseif(turns[turnsPointer] == 'S'){
+      //typ en delay där vi kör framåt i någon sekund
+    }
+
 
     run();
     //still();
