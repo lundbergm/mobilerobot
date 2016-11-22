@@ -55,6 +55,7 @@ unsigned long holeDist = 20000000; // ändra till riktigt värde
 unsigned long timeFrontSensorL;
 unsigned long timeFrontSensorR;
 unsigned long timeFrontSensorM;
+long turnModeTime = 0;
 
 long turnModeTime = 0;
 
@@ -74,7 +75,7 @@ double kpRturn = 0.6;
 double kpLturn = 0.6;
 double integral = 0;
 double ti = 0.025;
-double kp = 100.0;
+double kp = 119.0;
 int imax = 30;
 
 
@@ -224,7 +225,7 @@ void checkCrossing(){
     //Serial.println(frontL);
     if((frontL > 600 || frontR > 600) && !turnMode){
         turnModeTime = millis();
-        turnMode = 0;
+        turnMode = 1;
         Serial.print("TurnMode: ");
         Serial.println(turnMode);
     }else if(turnMode && ((millis() - turnModeTime) > 1000 )){
@@ -285,7 +286,7 @@ void still(){
 
 void loop() {
     //checkLine();
-
+    checkCrossing();
     run();
     checkCrossing();
     //still();
