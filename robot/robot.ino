@@ -18,9 +18,9 @@
 #define senR 3
 #define motorL 5
 #define motorR 6
-#define frontSensorL 7
-#define frontSensorR 8
-#define frontSensorM 9
+#define frontSensorL A4
+#define frontSensorR A3
+#define frontSensorM A2
 
 int gripperPin = 6;
 int trig = 8;
@@ -31,6 +31,7 @@ int lineL;
 int lineR;
 int frontL;
 int frontR;
+int frontM;
 long duration, distance;
 Servo wheelR;  // create servo object to control a servo
 Servo wheelL;
@@ -72,7 +73,7 @@ double kpR = 0.3;
 double kpL = 0.3;
 double integral = 0;
 double ti = 0.025;
-double kp = 115.0;
+double kp = 119.0;
 int imax = 30;
 
 
@@ -228,7 +229,7 @@ void checkCrossing(){
     //Serial.println(frontL);
     if((frontL > 600 || frontR > 600) && !turnMode){
         turnModeTime = millis();
-        turnMode = 0;
+        turnMode = 1;
         Serial.print("TurnMode: ");
         Serial.println(turnMode);
     }else if(turnMode && ((millis() - turnModeTime) > 1000 )){
@@ -264,7 +265,11 @@ void run(){
         integral += e * ti;
         if(integral > imax) {integral = imax;}
         else if(integral < -imax) {integral = -imax;}
-        u = kpR * e + integral;
+        if(turnMode){
+            u = kpR*2 * e + integral;
+        }else{
+            u = kpR * e + integral;
+        }
     } else if(mode == LEFT){
         lineL = analogRead(linesensorL);
         e = refL - lineL;
@@ -285,7 +290,7 @@ void still(){
 
 void loop() {
     //checkLine();
-
+    checkCrossing();
     run();
     //still();
     delay(100);
