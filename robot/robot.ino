@@ -45,6 +45,7 @@ int speedL = 0;
 int speedR = 0;
 int maxSpeed = 30;
 int mode;
+int turnMode;
 int countL = 0;
 int countR = 0;
 int temp = 0;
@@ -55,6 +56,7 @@ unsigned long holeDist = 20000000; // ändra till riktigt värde
 unsigned long timeFrontSensorL;
 unsigned long timeFrontSensorR;
 unsigned long timeFrontSensorM;
+long turnModeTime = 0;
 
 int offsetR = 90;
 int offsetL = 90;
@@ -96,6 +98,9 @@ void setup() {
 
     pinMode(linesensorL, INPUT);
     pinMode(linesensorR, INPUT);
+    pinMode(frontSensorL, INPUT);
+    pinMode(frontSensorR, INPUT);
+    pinMode(frontSensorM, INPUT);
     //pinMode(trig, OUTPUT);
     //digitalWrite(trig, LOW);
     //pinMode(echo, INPUT);
@@ -213,6 +218,24 @@ long getDistance(){
 void checkLine(){
     lineL = analogRead(linesensorL);
     lineR = analogRead(linesensorR);
+}
+
+
+void checkCrossing(){
+    frontL = analogRead(frontSensorL);
+    frontR = analogRead(frontSensorR);
+    frontM = analogRead(frontSensorM);
+    //Serial.println(frontL);
+    if((frontL > 600 || frontR > 600) && !turnMode){
+        turnModeTime = millis();
+        turnMode = 0;
+        Serial.print("TurnMode: ");
+        Serial.println(turnMode);
+    }else if(turnMode && ((millis() - turnModeTime) > 1000 )){
+        turnMode = 0;
+        Serial.print("TurnMode: ");
+        Serial.println(turnMode);
+    }
 }
 
 void servo(int u){
