@@ -86,7 +86,7 @@ double ti = 0.025;
 double kp = 115.0;
 int imax = 35;
 
-char[] turns; // left = 'L', right = 'R', 180 = 'B', Straight = 'S'
+char turns[] = {'L', 'B', 'S', 'B', 'R'}; // left = 'L', right = 'R', 180 = 'B', Straight = 'S'
 int turnsPointer;
 
 void initMotors(){
@@ -126,14 +126,14 @@ void setup() {
     attachInterrupt(frontSensorL, frontSensorInterruptL, RISING);
     attachInterrupt(frontSensorM, frontSensorInterruptM, FALLING);
     attachInterrupt(frontSensorR, frontSensorInterruptR, RISING);
-    turns = ['L', 'B', 'S', 'B', 'R'];
+
     turnsPointer = 0;
 
     speed = 20 ;
 
     gripperVal = 90;
     turn = 6;
-    mode = RIGHT;
+    mode = LEFT;
     turnMode = 0;
 
     Serial.begin(9600);
@@ -153,7 +153,7 @@ void frontSensorInterruptR(){
 void frontSensorInterruptM(){
 	turnsPointer++;
 }
-
+/*
 void candlesFound(){
   result char[] = new char[sizeof(turns)];
   boolean done =
@@ -179,7 +179,7 @@ void candlesFound(){
     }
   }
 }
-
+*/
 void calibrate(){
     wheelR.write(offsetR + 40);
     wheelL.write(offsetL + 40);
@@ -239,6 +239,9 @@ void checkCrossing(){
         turnMode = 1;
         identifyTime = millis();
         identifyMode = 1;
+        roadL = 0;
+        roadR = 0;
+        roadM = 0;
         Serial.println("turnMode");
     }else if(turnMode && ((millis() - turnModeTime) > 1000 )){
         turnMode = 0;
@@ -248,7 +251,7 @@ void checkCrossing(){
 
 void identify(){
 
-    if(millis() - identifyTime < 300){
+    if(millis() - identifyTime < 200){
         frontL = analogRead(frontSensorL);
         frontR = analogRead(frontSensorR);
         frontM = analogRead(frontSensorM);
@@ -258,13 +261,20 @@ void identify(){
         if(frontR > threshold){
             roadR = 1;
         }
-        if(front > threshold){
+        if(frontM > threshold){
             roadM = 1;
         }
-    }else if(roadL){
-        mode = LEFT;
     }else if(roadR){
         mode = RIGHT;
+        Serial.println(mode);
+        Serial.print("roadM: ");
+        Serial.println(roadM);
+    }
+    else if(roadL){
+        mode = LEFT;
+        Serial.println(mode);
+        Serial.print("roadM: ");
+        Serial.println(roadM);
     }
 }
 
@@ -316,10 +326,10 @@ void run(){
     } else if(mode == LEFT){
         lineL = analogRead(linesensorL);
         e = refL - lineL;
-        integral += e;
+        integral += e * ti;
         if(integral > imax) {integral = imax;}
         else if(integral < -imax) {integral = -imax;}
-        u = -(kpL * e + ti * integral);
+        u = -(kpL * e + integral);
     }
 
     servo(u);
@@ -334,6 +344,7 @@ void still(){
 void loop() {
 
     //checkLine();
+    /*
     if(turns[turnsPointer] == 'L'){
       mode = LEFT;
     }
@@ -342,11 +353,9 @@ void loop() {
     }
     elseif(turns[turnsPointer] == 'S'){
       //typ en delay där vi kör framåt i någon sekund
-    }
+  }*/
 
-
-
-    LorR();
+    //LorR();
     checkCrossing();
     if(turnMode){
         identify();
