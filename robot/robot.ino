@@ -57,8 +57,6 @@ unsigned long timeFrontSensorR;
 unsigned long timeFrontSensorM;
 long turnModeTime = 0;
 
-long turnModeTime = 0;
-
 int offsetR = 90;
 int offsetL = 90;
 int minR = 999;
@@ -75,8 +73,8 @@ double kpRturn = 0.6;
 double kpLturn = 0.6;
 double integral = 0;
 double ti = 0.025;
-double kp = 119.0;
-int imax = 30;
+double kp = 115.0;
+int imax = 35;
 
 
 void initMotors(){
@@ -262,7 +260,7 @@ void run(){
         if(integral > imax) {integral = imax;}
         else if(integral < -imax) {integral = -imax;}
         if(turnMode){
-            u = kpR*2 * e + integral;
+            u = kpR * e + integral;
         }else{
             u = kpR * e + integral;
         }
@@ -280,15 +278,15 @@ void run(){
 }
 
 void still(){
-    wheelR.write(offsetR);
-    wheelL.write(offsetL);
+    wheelR.write(90);
+    wheelL.write(90);
 }
 
 void loop() {
-    //checkLine();
+
     checkCrossing();
     run();
-    checkCrossing();
+
     //still();
     delay(100);
 }
