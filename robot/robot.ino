@@ -18,9 +18,12 @@
 #define senR 3
 #define motorL 5
 #define motorR 6
-#define frontSensorL 7
-#define frontSensorR 8
-#define frontSensorM 9
+#define frontSensorL A4
+#define frontSensorR A3
+#define frontSensorM A2
+
+#define ledL 9
+#define ledR 10
 
 int gripperPin = 6;
 int trig = 8;
@@ -31,12 +34,11 @@ int lineL;
 int lineR;
 int frontL;
 int frontR;
+int frontM;
 long duration, distance;
 Servo wheelR;  // create servo object to control a servo
 Servo wheelL;
 Servo gripper;
-int button1Val = 0;
-int button2Val = 0;
 int gripperVal;
 int speed;
 int turn;
@@ -45,12 +47,25 @@ int speedL = 0;
 int speedR = 0;
 int maxSpeed = 30;
 int mode;
+int turnMode;
+int identifyMode = 0;
 int countL = 0;
 int countR = 0;
 int temp = 0;
 
+int roadL = 0;
+int roadR = 0;
+int roadM = 0;
+
 unsigned long speedLSen = 0.0;
 unsigned long holeDist = 20000000; // ändra till riktigt värde
+
+
+long turnModeTime = 0;
+long identifyTime = 0;
+
+int threshold = 670;
+
 
 int offsetR = 90;
 int offsetL = 90;
@@ -64,10 +79,12 @@ int u = 0;
 int e = 0;
 double kpR = 0.3;
 double kpL = 0.3;
+double kpRturn = 0.6;
+double kpLturn = 0.6;
 double integral = 0;
 double ti = 0.025;
 double kp = 115.0;
-int imax = 30;
+int imax = 35;
 
 char[] turns; // left = 'L', right = 'R', 180 = 'B', Straight = 'S'
 int turnsPointer;
@@ -94,10 +111,13 @@ void setup() {
 
     pinMode(linesensorL, INPUT);
     pinMode(linesensorR, INPUT);
-    //pinMode(trig, OUTPUT);
-    //digitalWrite(trig, LOW);
-    //pinMode(echo, INPUT);
-    /* Enable interrupt */
+    pinMode(frontSensorL, INPUT);
+    pinMode(frontSensorR, INPUT);
+    pinMode(frontSensorM, INPUT);
+
+    pinMode(ledL, OUTPUT);
+    pinMode(ledR, OUTPUT);
+
     pinMode(senL, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(senL), senLfunc, RISING);
     pinMode(senR, INPUT_PULLUP);
@@ -113,15 +133,14 @@ void setup() {
 
     gripperVal = 90;
     turn = 6;
-    mode = LEFT;
-    //offsetRFunc();
-    //offsetLFunc();
+    mode = RIGHT;
+    turnMode = 0;
 
-    delay(1000);
+    Serial.begin(9600);
     initMotors();
     calibrate();
-
 }
+
 
 void frontSensorInterruptL(){
 	turnsPointer++;
@@ -210,11 +229,58 @@ long getDistance(){
     return duration / 29 / 2;
 }
 
-
-void checkLine(){
-    lineL = analogRead(linesensorL);
-    lineR = analogRead(linesensorR);
+void checkCrossing(){
+    frontL = analogRead(frontSensorL);
+    frontR = analogRead(frontSensorR);
+    frontM = analogRead(frontSensorM);
+    //Serial.println(frontL);
+    if((frontL > 600 || frontR > 600) && !turnMode){
+        turnModeTime = millis();
+        turnMode = 1;
+        identifyTime = millis();
+        identifyMode = 1;
+        Serial.println("turnMode");
+    }else if(turnMode && ((millis() - turnModeTime) > 1000 )){
+        turnMode = 0;
+        Serial.println("NOT turnMode");
+    }
 }
+
+void identify(){
+
+    if(millis() - identifyTime < 300){
+        frontL = analogRead(frontSensorL);
+        frontR = analogRead(frontSensorR);
+        frontM = analogRead(frontSensorM);
+        if(frontL > threshold){
+            roadL = 1;
+        }
+        if(frontR > threshold){
+            roadR = 1;
+        }
+        if(front > threshold){
+            roadM = 1;
+        }
+    }else if(roadL){
+        mode = LEFT;
+    }else if(roadR){
+        mode = RIGHT;
+    }
+}
+
+void LorR(){
+    int threshold = 670;
+
+    frontL = analogRead(frontSensorL);
+    frontR = analogRead(frontSensorR);
+    if(frontL > threshold){
+        mode = LEFT;
+    }
+    if(frontR > threshold){
+        mode = RIGHT;
+    }
+}
+
 
 void servo(int u){
     speedL = 50 + u;
@@ -242,7 +308,11 @@ void run(){
         integral += e * ti;
         if(integral > imax) {integral = imax;}
         else if(integral < -imax) {integral = -imax;}
-        u = kpR * e + integral;
+        if(turnMode){
+            u = kpR * e + integral;
+        }else{
+            u = kpR * e + integral;
+        }
     } else if(mode == LEFT){
         lineL = analogRead(linesensorL);
         e = refL - lineL;
@@ -257,11 +327,12 @@ void run(){
 }
 
 void still(){
-    wheelR.write(offsetR);
-    wheelL.write(offsetL);
+    wheelR.write(90);
+    wheelL.write(90);
 }
 
 void loop() {
+
     //checkLine();
     if(turns[turnsPointer] == 'L'){
       mode = LEFT;
@@ -274,7 +345,15 @@ void loop() {
     }
 
 
+
+    LorR();
+    checkCrossing();
+    if(turnMode){
+        identify();
+    }
+
     run();
+
     //still();
     delay(100);
 }
