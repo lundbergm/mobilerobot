@@ -18,9 +18,9 @@
 #define senR 3
 #define motorL 5
 #define motorR 6
-#define frontSensorL 7
-#define frontSensorR 8
-#define frontSensorM 9
+#define frontSensorL A4
+#define frontSensorR A3
+#define frontSensorM A2
 
 int gripperPin = 6;
 int trig = 8;
@@ -31,12 +31,11 @@ int lineL;
 int lineR;
 int frontL;
 int frontR;
+int frontM;
 long duration, distance;
 Servo wheelR;  // create servo object to control a servo
 Servo wheelL;
 Servo gripper;
-int button1Val = 0;
-int button2Val = 0;
 int gripperVal;
 int speed;
 int turn;
@@ -45,6 +44,7 @@ int speedL = 0;
 int speedR = 0;
 int maxSpeed = 30;
 int mode;
+int turnMode;
 int countL = 0;
 int countR = 0;
 int temp = 0;
@@ -55,6 +55,8 @@ unsigned long holeDist = 20000000; // ändra till riktigt värde
 unsigned long timeFrontSensorL;
 unsigned long timeFrontSensorR;
 unsigned long timeFrontSensorM;
+
+long turnModeTime = 0;
 
 int offsetR = 90;
 int offsetL = 90;
@@ -68,9 +70,11 @@ int u = 0;
 int e = 0;
 double kpR = 0.3;
 double kpL = 0.3;
+double kpRturn = 0.6;
+double kpLturn = 0.6;
 double integral = 0;
 double ti = 0.025;
-double kp = 115.0;
+double kp = 100.0;
 int imax = 30;
 
 
@@ -96,10 +100,10 @@ void setup() {
 
     pinMode(linesensorL, INPUT);
     pinMode(linesensorR, INPUT);
-    //pinMode(trig, OUTPUT);
-    //digitalWrite(trig, LOW);
-    //pinMode(echo, INPUT);
-    /* Enable interrupt */
+    pinMode(frontSensorL, INPUT);
+    pinMode(frontSensorR, INPUT);
+    pinMode(frontSensorM, INPUT);
+
     pinMode(senL, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(senL), senLfunc, RISING);
     pinMode(senR, INPUT_PULLUP);
@@ -110,20 +114,18 @@ void setup() {
 	attachInterrupt(frontSensorM, frontSensorInterruptM, HIGH);
 	attachInterrupt(frontSensorR, frontSensorInterruptR, RISING);
 
-
     speed = 20 ;
 
     gripperVal = 90;
     turn = 6;
-    mode = LEFT;
-    //offsetRFunc();
-    //offsetLFunc();
+    mode = RIGHT;
+    turnMode = 0;
 
-    delay(1000);
+    Serial.begin(9600);
     initMotors();
     calibrate();
-
 }
+
 
 void frontSensorInterruptL(){
 	timeFrontSensorL = millis();
@@ -215,6 +217,23 @@ void checkLine(){
     lineR = analogRead(linesensorR);
 }
 
+void checkCrossing(){
+    frontL = analogRead(frontSensorL);
+    frontR = analogRead(frontSensorR);
+    frontM = analogRead(frontSensorM);
+    //Serial.println(frontL);
+    if((frontL > 600 || frontR > 600) && !turnMode){
+        turnModeTime = millis();
+        turnMode = 0;
+        Serial.print("TurnMode: ");
+        Serial.println(turnMode);
+    }else if(turnMode && ((millis() - turnModeTime) > 1000 )){
+        turnMode = 0;
+        Serial.print("TurnMode: ");
+        Serial.println(turnMode);
+    }
+}
+
 void servo(int u){
     speedL = 50 + u;
     speedR = 130 + u;
@@ -241,7 +260,11 @@ void run(){
         integral += e * ti;
         if(integral > imax) {integral = imax;}
         else if(integral < -imax) {integral = -imax;}
-        u = kpR * e + integral;
+        if(turnMode){
+            u = kpR*2 * e + integral;
+        }else{
+            u = kpR * e + integral;
+        }
     } else if(mode == LEFT){
         lineL = analogRead(linesensorL);
         e = refL - lineL;
@@ -264,6 +287,7 @@ void loop() {
     //checkLine();
 
     run();
+    checkCrossing();
     //still();
     delay(100);
 }
