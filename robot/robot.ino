@@ -49,6 +49,10 @@ int countL = 0;
 int countR = 0;
 int temp = 0;
 
+int roadL = 0;
+int roadR = 0;
+int roadM = 0;
+
 unsigned long speedLSen = 0.0;
 unsigned long holeDist = 20000000; // ändra till riktigt värde
 
@@ -56,6 +60,7 @@ unsigned long timeFrontSensorL;
 unsigned long timeFrontSensorR;
 unsigned long timeFrontSensorM;
 long turnModeTime = 0;
+long identifyTime = 0;
 
 int offsetR = 90;
 int offsetL = 90;
@@ -232,6 +237,37 @@ void checkCrossing(){
         Serial.println(turnMode);
     }
 }
+
+void identify(){
+    int threshold = 670;
+
+    frontL = analogRead(frontSensorL);
+    frontR = analogRead(frontSensorR);
+    frontM = analogRead(frontSensorM);
+    if(frontL > threshold){
+        roadL = 1;
+    }
+    if(frontR > threshold){
+        roadR = 1;
+    }
+    if(frontL > threshold){
+        roadM = 1;
+    }
+}
+
+void LorR(){
+    int threshold = 670;
+
+    frontL = analogRead(frontSensorL);
+    frontR = analogRead(frontSensorR);
+    if(frontL > threshold){
+        mode = LEFT;
+    }
+    if(frontR > threshold){
+        mode = RIGHT;
+    }
+}
+
 
 void servo(int u){
     speedL = 50 + u;
