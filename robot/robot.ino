@@ -69,9 +69,9 @@ int e = 0;
 double kpR = 0.3;
 double kpL = 0.3;
 double integral = 0;
-double ti = 0.02;
-double kp = 130.0;
-int imax = 40;
+double ti = 0.025;
+double kp = 115.0;
+int imax = 30;
 
 
 void initMotors(){
@@ -92,7 +92,7 @@ void senRfunc(){
 
 void setup() {
     /* Serial */
-    Serial.begin(9600);
+
 
     pinMode(linesensorL, INPUT);
     pinMode(linesensorR, INPUT);
@@ -115,14 +115,14 @@ void setup() {
 
     gripperVal = 90;
     turn = 6;
-    mode = RIGHT;
+    mode = LEFT;
     //offsetRFunc();
     //offsetLFunc();
-    Serial.println("SETUP");
+
     delay(1000);
     initMotors();
     calibrate();
-    Serial.println("ALL DONE");
+
 }
 
 void frontSensorInterruptL(){
@@ -191,20 +191,13 @@ void calibrate(){
 
     wheelR.write(offsetR);
     wheelL.write(offsetL);
-    Serial.println("maxR");
-    Serial.println(maxR);
-    Serial.println("minR");
-    Serial.println(minR);
+
     refR    = (maxR+minR)/2;
     refL    = (maxL+minL)/2;
-    Serial.println("refR    ");
-    Serial.println(refR);
+
     kpR = kp/(maxR - minR);
     kpL = kp/(maxL - minL);
-    Serial.println("delta");
-    Serial.println(maxR- minR);
-    Serial.println("kpR");
-    Serial.println(kpR);
+
 }
 
 
@@ -220,13 +213,6 @@ long getDistance(){
 void checkLine(){
     lineL = analogRead(linesensorL);
     lineR = analogRead(linesensorR);
-
-    Serial.print("L: ");
-    Serial.print(lineL);
-    Serial.print("     R: ");
-    Serial.println(lineR);
-
-
 }
 
 void servo(int u){
@@ -245,12 +231,6 @@ void servo(int u){
     }
     wheelL.write(speedL);
     wheelR.write(speedR);
-    Serial.print("      u: ");
-    Serial.print(u);
-    Serial.print("      R: ");
-    Serial.print(speedR);
-    Serial.print("     L: ");
-    Serial.println(speedL);
 }
 
 void run(){
@@ -266,12 +246,11 @@ void run(){
         lineL = analogRead(linesensorL);
         e = refL - lineL;
         integral += e;
-        u = kpL * e + ti * integral;
+        if(integral > imax) {integral = imax;}
+        else if(integral < -imax) {integral = -imax;}
+        u = -(kpL * e + ti * integral);
     }
-    Serial.print("e: ");
-    Serial.print(e);
-    Serial.print("      i: ");
-    Serial.print(integral);
+
     servo(u);
 
 }
