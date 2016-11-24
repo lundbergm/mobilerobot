@@ -22,8 +22,9 @@
 #define frontSensorR A3
 #define frontSensorM A2
 
-#define ledL 9
-#define ledR 10
+#define ledL 11
+#define ledM 10
+#define ledR 12
 
 int gripperPin = 6;
 int trig = 8;
@@ -45,7 +46,7 @@ int turn;
 int conf = 0;
 int speedL = 0;
 int speedR = 0;
-int maxSpeed = 30;
+
 int mode;
 int turnMode;
 int identifyMode = 0;
@@ -63,6 +64,8 @@ unsigned long holeDist = 20000000; // ändra till riktigt värde
 
 long turnModeTime = 0;
 long identifyTime = 0;
+long frontTime = 0;
+long testTimer;
 
 int threshold = 670;
 
@@ -79,12 +82,20 @@ int u = 0;
 int e = 0;
 double kpR = 0.3;
 double kpL = 0.3;
-double kpRturn = 0.6;
-double kpLturn = 0.6;
+double deltaR;
+double deltaL;
 double integral = 0;
-double ti = 0.025;
-double kp = 115.0;
-int imax = 35;
+double ti = 0.035;      //should be 0.035
+double kp = 115.0;      // should be 115
+int imax = 20;//35;          // should be 35
+double ti_turn = 0.0015;      //should be 0.035
+double kp_turn = 75.0;      // should be 115
+int imax_turn = 10;          // should be 35
+double ti_s = 0.00;      //should be 0.035
+double kp_s = 75.0;      // should be 115 // 95
+int imax_s = 0;          // should be 35
+
+int maxSpeed = 40;
 
 char turns[] = {'L', 'B', 'S', 'B', 'R'}; // left = 'L', right = 'R', 180 = 'B', Straight = 'S'
 int turnsPointer;
@@ -106,9 +117,8 @@ void senRfunc(){
 }
 
 void setup() {
-    /* Serial */
 
-
+    Serial.begin(9600);
     pinMode(linesensorL, INPUT);
     pinMode(linesensorR, INPUT);
     pinMode(frontSensorL, INPUT);
@@ -116,6 +126,7 @@ void setup() {
     pinMode(frontSensorM, INPUT);
 
     pinMode(ledL, OUTPUT);
+    pinMode(ledM, OUTPUT);
     pinMode(ledR, OUTPUT);
 
     pinMode(senL, INPUT_PULLUP);
@@ -133,12 +144,12 @@ void setup() {
 
     gripperVal = 90;
     turn = 6;
-    mode = LEFT;
+    mode = RIGHT;
     turnMode = 0;
 
-    Serial.begin(9600);
     initMotors();
     calibrate();
+    testTimer = millis();
 }
 
 
@@ -181,6 +192,7 @@ void candlesFound(){
 }
 */
 void calibrate(){
+    digitalWrite(ledM, HIGH);
     wheelR.write(offsetR + 40);
     wheelL.write(offsetL + 40);
     for(int i = 0; i<200; i++){
@@ -214,10 +226,11 @@ void calibrate(){
 
     refR    = (maxR+minR)/2;
     refL    = (maxL+minL)/2;
-
-    kpR = kp/(maxR - minR);
-    kpL = kp/(maxL - minL);
-
+    deltaR = (maxR - minR);
+    deltaL = (maxL - minL);
+    kpR = kp/deltaR;
+    kpL = kp/deltaL;
+    digitalWrite(ledM, LOW);
 }
 
 
@@ -233,19 +246,33 @@ void checkCrossing(){
     frontL = analogRead(frontSensorL);
     frontR = analogRead(frontSensorR);
     frontM = analogRead(frontSensorM);
-    //Serial.println(frontL);
-    if((frontL > 600 || frontR > 600) && !turnMode){
+    if(frontM > threshold){
+        frontTime = millis();
+    }
+
+    if(((frontL > 600 || frontR > 600 || (millis() - frontTime) > 500) && !turnMode)){
+        digitalWrite(ledM, HIGH);
         turnModeTime = millis();
         turnMode = 1;
+        maxSpeed = 16;
         identifyTime = millis();
         identifyMode = 1;
         roadL = 0;
         roadR = 0;
         roadM = 0;
-        Serial.println("turnMode");
-    }else if(turnMode && ((millis() - turnModeTime) > 1000 )){
+        digitalWrite(ledL, LOW);
+        digitalWrite(ledR, LOW);
+        kp = kp_turn;
+        ti = ti_turn;
+        imax = imax_turn;
+
+    }else if(turnMode && ((millis() - turnModeTime) > 1500 )){
+        digitalWrite(ledM, LOW);
         turnMode = 0;
-        Serial.println("NOT turnMode");
+        maxSpeed = 40;
+        kp = kp_s;
+        ti = ti_s;
+        imax = imax_s;
     }
 }
 
@@ -257,54 +284,49 @@ void identify(){
         frontM = analogRead(frontSensorM);
         if(frontL > threshold){
             roadL = 1;
+            digitalWrite(ledL, HIGH);
         }
         if(frontR > threshold){
             roadR = 1;
+            digitalWrite(ledR, HIGH);
         }
         if(frontM > threshold){
             roadM = 1;
         }
     }else if(roadR){
         mode = RIGHT;
-        Serial.println(mode);
-        Serial.print("roadM: ");
-        Serial.println(roadM);
     }
     else if(roadL){
         mode = LEFT;
-        Serial.println(mode);
-        Serial.print("roadM: ");
-        Serial.println(roadM);
     }
 }
 
 void LorR(){
-    int threshold = 670;
-
-    frontL = analogRead(frontSensorL);
-    frontR = analogRead(frontSensorR);
-    if(frontL > threshold){
+    if((millis()/1000 % 2) == 0){
         mode = LEFT;
-    }
-    if(frontR > threshold){
+        digitalWrite(ledL, HIGH);
+        digitalWrite(ledR, LOW);
+    } else{
         mode = RIGHT;
+        digitalWrite(ledL, LOW);
+        digitalWrite(ledR, HIGH);
     }
 }
 
 
 void servo(int u){
-    speedL = 50 + u;
-    speedR = 130 + u;
+    speedL = 90 - maxSpeed + u;
+    speedR = 90 + maxSpeed + u;
 
-    if(speedR > 130){
-        speedR = 130;
-    }else if(speedR < 50){
-        speedR = 50;
+    if(speedR > (90 + maxSpeed)){
+        speedR = 90 + maxSpeed;
+    }else if(speedR < (90 - maxSpeed)){
+        speedR = 90 - maxSpeed;
     }
-    if(speedL > 130){
-        speedL = 130;
-    } else if(speedL < 50){
-        speedL = 50;
+    if(speedL > (90 + maxSpeed)){
+        speedL = 90 + maxSpeed;
+    } else if(speedL < 90 - maxSpeed){
+        speedL = 90 - maxSpeed;
     }
     wheelL.write(speedL);
     wheelR.write(speedR);
@@ -318,18 +340,27 @@ void run(){
         integral += e * ti;
         if(integral > imax) {integral = imax;}
         else if(integral < -imax) {integral = -imax;}
-        if(turnMode){
-            u = kpR * e + integral;
-        }else{
-            u = kpR * e + integral;
-        }
+        u = kp/deltaR * e + integral;
+        Serial.print("u: ");
+        Serial.print(u);
+        Serial.print("  kp: ");
+        Serial.print(kp);
+        Serial.print("  deltaR: ");
+        Serial.print(deltaR);
+        Serial.print("  kp/deltaR: ");
+        Serial.print(kp/deltaR);
+        Serial.print("  I: ");
+        Serial.print(integral);
+        Serial.print("  e: ");
+        Serial.println(e);
+
     } else if(mode == LEFT){
         lineL = analogRead(linesensorL);
         e = refL - lineL;
         integral += e * ti;
         if(integral > imax) {integral = imax;}
         else if(integral < -imax) {integral = -imax;}
-        u = -(kpL * e + integral);
+        u = -(kp/deltaL * e + integral);
     }
 
     servo(u);
@@ -356,11 +387,11 @@ void loop() {
   }*/
 
     //LorR();
-    checkCrossing();
+    //checkCrossing();
     if(turnMode){
         identify();
     }
-
+    LorR();
     run();
 
     //still();
