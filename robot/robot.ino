@@ -66,6 +66,7 @@ long turnModeTime = 0;
 long identifyTime = 0;
 long frontTime = 0;
 long testTimer;
+long chillTime;
 
 int threshold = 670;
 
@@ -99,6 +100,9 @@ int maxSpeed = 40;
 
 char turns[] = {'L', 'B', 'S', 'B', 'R'}; // left = 'L', right = 'R', 180 = 'B', Straight = 'S'
 int turnsPointer;
+
+int inst[] = {'R', 'U', 'L', 'U', 'R', 'U', 'L', 'U', 'R', 'U', 'L', 'U', 'R', 'U', 'L', 'U'};
+int instC = 0;
 
 void initMotors(){
     //gripper.attach(gripperPin);
@@ -250,7 +254,7 @@ void checkCrossing(){
         frontTime = millis();
     }
 
-    if(((frontL > 600 || frontR > 600 || (millis() - frontTime) > 500) && !turnMode)){
+    if(((frontL > 600 || frontR > 600 || (millis() - frontTime) > 500) && !turnMode && (millis() - chillTime) > 800 )){
         digitalWrite(ledM, HIGH);
         turnModeTime = millis();
         turnMode = 1;
@@ -260,44 +264,63 @@ void checkCrossing(){
         roadL = 0;
         roadR = 0;
         roadM = 0;
-        digitalWrite(ledL, LOW);
-        digitalWrite(ledR, LOW);
+        //digitalWrite(ledL, LOW);
+        //digitalWrite(ledR, LOW);
         kp = kp_turn;
         ti = ti_turn;
         imax = imax_turn;
 
-    }else if(turnMode && ((millis() - turnModeTime) > 1500 )){
+    }else if(turnMode && ((millis() - turnModeTime) > 1000 ) && (frontM > threshold)){
         digitalWrite(ledM, LOW);
         turnMode = 0;
         maxSpeed = 40;
         kp = kp_s;
         ti = ti_s;
         imax = imax_s;
+        if(inst[instC % 16] == 'R'){
+            mode = RIGHT;
+            digitalWrite(ledR, HIGH);
+            digitalWrite(ledL, LOW);
+        }
+        else if(inst[instC % 16] == 'L'){
+            mode = LEFT;
+            digitalWrite(ledL, HIGH);
+            digitalWrite(ledR, LOW);
+        } else if(inst[instC % 16] == 'U'){
+            if(inst[(instC + 1) % 16] == 'R'){
+                mode = RIGHT;
+                digitalWrite(ledR, HIGH);
+                digitalWrite(ledL, LOW);
+            }
+            else if(inst[(instC + 1) % 16] == 'L'){
+                mode = LEFT;
+                digitalWrite(ledL, HIGH);
+                digitalWrite(ledR, LOW);
+            }
+        }
+
+        instC++;
+        chillTime = millis();
     }
 }
 
 void identify(){
 
-    if(millis() - identifyTime < 200){
+    if(millis() - identifyTime < 300){
         frontL = analogRead(frontSensorL);
         frontR = analogRead(frontSensorR);
         frontM = analogRead(frontSensorM);
         if(frontL > threshold){
             roadL = 1;
-            digitalWrite(ledL, HIGH);
+            //digitalWrite(ledL, HIGH);
         }
         if(frontR > threshold){
             roadR = 1;
-            digitalWrite(ledR, HIGH);
+            //digitalWrite(ledR, HIGH);
         }
         if(frontM > threshold){
             roadM = 1;
         }
-    }else if(roadR){
-        mode = RIGHT;
-    }
-    else if(roadL){
-        mode = LEFT;
     }
 }
 
@@ -387,11 +410,11 @@ void loop() {
   }*/
 
     //LorR();
-    //checkCrossing();
+    checkCrossing();
     if(turnMode){
         identify();
     }
-    LorR();
+    //LorR();
     run();
 
     //still();
