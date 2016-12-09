@@ -18,17 +18,21 @@
 #define senR 3
 #define motorL 5
 #define motorR 6
+#define gripperPin 9
 #define frontSensorL A4
 #define frontSensorR A3
 #define frontSensorM A2
 
+#define flameSensor A5
+
 #define ledL 11
 #define ledM 10
 #define ledR 12
+#define triggerPin 4
+#define echoPin 7
 
-int gripperPin = 6;
-int trig = 8;
-int echo = 7;
+//int gripperPin = 6;
+
 
 int val;    // variable to read the value from the analog pin
 int lineL;
@@ -104,6 +108,8 @@ int turnsPointer;
 int inst[] = {'R', 'U', 'L', 'U', 'R', 'U', 'L', 'U', 'R', 'U', 'L', 'U', 'R', 'U', 'L', 'U'};
 int instC = 0;
 
+int flame = 0;
+
 void initMotors(){
     //gripper.attach(gripperPin);
 
@@ -128,19 +134,22 @@ void setup() {
     pinMode(frontSensorL, INPUT);
     pinMode(frontSensorR, INPUT);
     pinMode(frontSensorM, INPUT);
+    pinMode(flameSensor, INPUT);
 
     pinMode(ledL, OUTPUT);
     pinMode(ledM, OUTPUT);
     pinMode(ledR, OUTPUT);
 
     pinMode(senL, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(senL), senLfunc, RISING);
+    //attachInterrupt(digitalPinToInterrupt(senL), senLfunc, RISING);
     pinMode(senR, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(senR), senRfunc, RISING);
+    pinMode(triggerPin, OUTPUT);
+    pinMode(echoPin, INPUT);
+    //attachInterrupt(digitalPinToInterrupt(senR), senRfunc, RISING);
 
-    attachInterrupt(frontSensorL, frontSensorInterruptL, RISING);
-    attachInterrupt(frontSensorM, frontSensorInterruptM, FALLING);
-    attachInterrupt(frontSensorR, frontSensorInterruptR, RISING);
+    //attachInterrupt(frontSensorL, frontSensorInterruptL, RISING);
+    //attachInterrupt(frontSensorM, frontSensorInterruptM, FALLING);
+    //attachInterrupt(frontSensorR, frontSensorInterruptR, RISING);
 
     turnsPointer = 0;
 
@@ -151,7 +160,9 @@ void setup() {
     mode = RIGHT;
     turnMode = 0;
 
-    initMotors();
+    //initMotors();
+    gripper.attach(gripperPin);
+    gripper.write(80);
     calibrate();
     testTimer = millis();
 }
@@ -168,33 +179,7 @@ void frontSensorInterruptR(){
 void frontSensorInterruptM(){
 	turnsPointer++;
 }
-/*
-void candlesFound(){
-  result char[] = new char[sizeof(turns)];
-  boolean done =
-  while(i<turnsPointer){
-    tempResult char[] = new char[sizeof(turns)];
-    for(int i = 0; i < sizeof(turns); i++){
-      int sum = turns[i]+turns[i+1]+turns[i+2];
-      if(sum == 224 || sum == 232){
-        result[i] = 'B';
-        i += 2;
-      }
-      else if(sum == 225){
-        result[i] = 'R';
-        i += 2;
-      }
-      else if(sum == 218){
-        result[i] = 'S';
-        i += 2;
-      }
-      else{
-        result[i] = turns[i];
-      }
-    }
-  }
-}
-*/
+
 void calibrate(){
     digitalWrite(ledM, HIGH);
     wheelR.write(offsetR + 40);
@@ -239,10 +224,10 @@ void calibrate(){
 
 
 long getDistance(){
-    digitalWrite(trig, HIGH);
+    digitalWrite(triggerPin, HIGH);
     delayMicroseconds(10);
-    digitalWrite(trig, LOW);
-    duration = pulseIn(echo, HIGH);
+    digitalWrite(triggerPin, LOW);
+    duration = pulseIn(echoPin, HIGH);
     return duration / 29 / 2;
 }
 
@@ -364,6 +349,7 @@ void run(){
         if(integral > imax) {integral = imax;}
         else if(integral < -imax) {integral = -imax;}
         u = kp/deltaR * e + integral;
+        /*
         Serial.print("u: ");
         Serial.print(u);
         Serial.print("  kp: ");
@@ -375,7 +361,7 @@ void run(){
         Serial.print("  I: ");
         Serial.print(integral);
         Serial.print("  e: ");
-        Serial.println(e);
+        Serial.println(e);*/
 
     } else if(mode == LEFT){
         lineL = analogRead(linesensorL);
@@ -393,6 +379,19 @@ void run(){
 void still(){
     wheelR.write(90);
     wheelL.write(90);
+}
+
+void candle(){
+    //flame = analogRead(flameSensor);
+    //flame = digitalRead(flameSensor);
+    digitalWrite(triggerPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(triggerPin, LOW);
+    duration = pulseIn(echoPin, HIGH);
+    Serial.println(duration);
+    if(duration < 270){
+        gripper.write(180);
+    }
 }
 
 void loop() {
@@ -415,6 +414,7 @@ void loop() {
         identify();
     }
     //LorR();
+    candle();
     run();
 
     //still();
