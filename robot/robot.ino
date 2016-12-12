@@ -19,13 +19,14 @@
 #define motorL 5
 #define motorR 6
 #define gripperPin 9
+#define flipperPin 11
 #define frontSensorL A4
 #define frontSensorR A3
 #define frontSensorM A2
 
 #define flameSensor A5
 
-#define ledL 11
+#define ledL 13
 #define ledM 10
 #define ledR 12
 #define triggerPin 4
@@ -44,6 +45,7 @@ long duration, distance;
 Servo wheelR;  // create servo object to control a servo
 Servo wheelL;
 Servo gripper;
+Servo flipper;
 int gripperVal;
 int speed;
 int turn;
@@ -71,6 +73,8 @@ long identifyTime = 0;
 long frontTime = 0;
 long testTimer;
 long chillTime;
+long gripperTimer;
+long flipperTimer;
 
 int threshold = 670;
 
@@ -109,9 +113,11 @@ int inst[] = {'R', 'U', 'L', 'U', 'R', 'U', 'L', 'U', 'R', 'U', 'L', 'U', 'R', '
 int instC = 0;
 
 int flame = 0;
+int gripperMode = 0;
+int candleCount = 0;
 
 void initMotors(){
-    //gripper.attach(gripperPin);
+    gripper.attach(gripperPin);
 
     wheelR.attach(motorR);
     wheelL.attach(motorL);
@@ -160,11 +166,16 @@ void setup() {
     mode = RIGHT;
     turnMode = 0;
 
-    //initMotors();
+    initMotors();
     gripper.attach(gripperPin);
-    gripper.write(80);
+    flipper.attach(flipperPin);
+    flipper.write(90);
+    gripper.write(90);
     calibrate();
     testTimer = millis();
+    digitalWrite(ledL, LOW);
+    digitalWrite(ledM, LOW);
+    digitalWrite(ledR, LOW);
 }
 
 
@@ -240,7 +251,7 @@ void checkCrossing(){
     }
 
     if(((frontL > 600 || frontR > 600 || (millis() - frontTime) > 500) && !turnMode && (millis() - chillTime) > 800 )){
-        digitalWrite(ledM, HIGH);
+        //digitalWrite(ledM, HIGH);
         turnModeTime = millis();
         turnMode = 1;
         maxSpeed = 16;
@@ -256,12 +267,14 @@ void checkCrossing(){
         imax = imax_turn;
 
     }else if(turnMode && ((millis() - turnModeTime) > 1000 ) && (frontM > threshold)){
-        digitalWrite(ledM, LOW);
+        //digitalWrite(ledM, LOW);
         turnMode = 0;
         maxSpeed = 40;
         kp = kp_s;
         ti = ti_s;
         imax = imax_s;
+        mode = LEFT;
+        /*
         if(inst[instC % 16] == 'R'){
             mode = RIGHT;
             digitalWrite(ledR, HIGH);
@@ -285,6 +298,7 @@ void checkCrossing(){
         }
 
         instC++;
+        */
         chillTime = millis();
     }
 }
@@ -384,39 +398,69 @@ void still(){
 void candle(){
     //flame = analogRead(flameSensor);
     //flame = digitalRead(flameSensor);
-    digitalWrite(triggerPin, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(triggerPin, LOW);
-    duration = pulseIn(echoPin, HIGH);
-    Serial.println(duration);
-    if(duration < 270){
-        gripper.write(180);
+    if(gripperMode == 0){
+        digitalWrite(triggerPin, HIGH);
+        delayMicroseconds(10);
+        digitalWrite(triggerPin, LOW);
+        duration = pulseIn(echoPin, HIGH);
+        if(duration < 270){
+            gripper.attach(gripperPin);
+            gripper.write(110);
+            gripperMode = 1;
+            gripperTimer = millis();
+        }
+    } else if(gripperMode == 1){
+        if(millis() - gripperTimer > 200){
+            flipper.attach(flipperPin);
+            flipper.write(100);
+            gripperMode = 2;
+            flipperTimer = millis();
+        }
+    } else if(gripperMode == 2){
+        if(millis() - flipperTimer > 2000){
+            gripper.write(80);
+            gripperMode = 3;
+            gripperTimer = millis();
+        }
+    }else if(gripperMode == 3){
+        if(millis() - gripperTimer > 300){
+            gripper.write(87);
+            flipper.write(85);
+            gripper.detach();
+            flipperTimer = millis();
+            gripperMode = 4;
+            candleCount ++;
+            if((candleCount % 4) == 0){
+                digitalWrite(ledL, LOW);
+                digitalWrite(ledM, LOW);
+                digitalWrite(ledR, LOW);
+            }else if((candleCount % 4) == 1){
+                digitalWrite(ledL, HIGH);
+            }
+            else if((candleCount % 4) == 2){
+                digitalWrite(ledM, HIGH);
+            }else if((candleCount % 4) == 3){
+                digitalWrite(ledR, HIGH);
+            }
+
+        }
+    }else if(gripperMode == 4){
+        if(millis() - flipperTimer > 2000){
+            flipper.write(87);
+            flipper.detach();
+            gripperMode = 0;
+        }
     }
 }
 
 void loop() {
 
-    //checkLine();
-    /*
-    if(turns[turnsPointer] == 'L'){
-      mode = LEFT;
-    }
-    elseif(turns[turnsPointer] == 'R'){
-      mode = RIGHT;
-    }
-    elseif(turns[turnsPointer] == 'S'){
-      //typ en delay där vi kör framåt i någon sekund
-  }*/
-
-    //LorR();
     checkCrossing();
     if(turnMode){
         identify();
     }
-    //LorR();
     candle();
     run();
-
     //still();
     delay(100);
 }
