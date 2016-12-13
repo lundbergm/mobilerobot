@@ -323,6 +323,13 @@ void identify(){
             roadM = 1;
         }
     }
+    else{
+        if(roadL == 1 || roadM == 1){
+            mode == LEFT;
+        } else{
+            mode == RIGHT;
+        }
+    }
 }
 
 void LorR(){
@@ -392,6 +399,7 @@ void candle(){
         delayMicroseconds(10);
         digitalWrite(triggerPin, LOW);
         duration = pulseIn(echoPin, HIGH);
+        Serial.println(duration);
         if(duration < 270){
             gripper.attach(gripperPin);
             gripper.write(110);
@@ -459,13 +467,12 @@ void printSensors(){
 void loop() {
 
     checkCrossing();
-    /*
+
     if(turnMode){
         identify();
-    }*/
-        candle();
+    }
+    candle();
     run();
-    //printSensors();
-    //still();
+
     delay(100);
 }
