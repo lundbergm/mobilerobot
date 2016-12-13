@@ -169,10 +169,12 @@ void setup() {
     initMotors();
     gripper.attach(gripperPin);
     flipper.attach(flipperPin);
-    flipper.write(90);
-    gripper.write(90);
+    flipper.write(85);
+    gripper.write(85);
     calibrate();
     testTimer = millis();
+    gripper.detach();
+    flipper.detach();
     digitalWrite(ledL, LOW);
     digitalWrite(ledM, LOW);
     digitalWrite(ledR, LOW);
@@ -251,7 +253,7 @@ void checkCrossing(){
     }
 
     if(((frontL > 600 || frontR > 600 || (millis() - frontTime) > 500) && !turnMode && (millis() - chillTime) > 800 )){
-        //digitalWrite(ledM, HIGH);
+        digitalWrite(ledM, HIGH);
         turnModeTime = millis();
         turnMode = 1;
         maxSpeed = 16;
@@ -267,7 +269,7 @@ void checkCrossing(){
         imax = imax_turn;
 
     }else if(turnMode && ((millis() - turnModeTime) > 1000 ) && (frontM > threshold)){
-        //digitalWrite(ledM, LOW);
+        digitalWrite(ledM, LOW);
         turnMode = 0;
         maxSpeed = 40;
         kp = kp_s;
@@ -363,19 +365,6 @@ void run(){
         if(integral > imax) {integral = imax;}
         else if(integral < -imax) {integral = -imax;}
         u = kp/deltaR * e + integral;
-        /*
-        Serial.print("u: ");
-        Serial.print(u);
-        Serial.print("  kp: ");
-        Serial.print(kp);
-        Serial.print("  deltaR: ");
-        Serial.print(deltaR);
-        Serial.print("  kp/deltaR: ");
-        Serial.print(kp/deltaR);
-        Serial.print("  I: ");
-        Serial.print(integral);
-        Serial.print("  e: ");
-        Serial.println(e);*/
 
     } else if(mode == LEFT){
         lineL = analogRead(linesensorL);
@@ -429,6 +418,7 @@ void candle(){
             gripper.detach();
             flipperTimer = millis();
             gripperMode = 4;
+            /*
             candleCount ++;
             if((candleCount % 4) == 0){
                 digitalWrite(ledL, LOW);
@@ -441,7 +431,7 @@ void candle(){
                 digitalWrite(ledM, HIGH);
             }else if((candleCount % 4) == 3){
                 digitalWrite(ledR, HIGH);
-            }
+            }*/
 
         }
     }else if(gripperMode == 4){
@@ -453,14 +443,29 @@ void candle(){
     }
 }
 
+void printSensors(){
+    Serial.print("frontL: ");
+    Serial.print(analogRead(frontSensorL));
+    Serial.print("  frontM: ");
+    Serial.print(analogRead(frontSensorM));
+    Serial.print("  frontR: ");
+    Serial.print(analogRead(frontSensorR));
+    Serial.print("  L: ");
+    Serial.print(analogRead(linesensorL));
+    Serial.print("  R: ");
+    Serial.println(analogRead(linesensorR));
+}
+
 void loop() {
 
     checkCrossing();
+    /*
     if(turnMode){
         identify();
-    }
-    candle();
+    }*/
+        candle();
     run();
+    //printSensors();
     //still();
     delay(100);
 }
